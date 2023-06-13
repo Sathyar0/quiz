@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quiz</title>
+  <style>
+    /* CSS styles for the quiz website */
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    #quiz-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      max-width: 100px;
+      margin-right: 20px;
+    }
+    
+    h1 {
+      font-family: coalition, sans-serif;
+      text-align: center;
+    }
+
+    #quiz-container {
+      margin: 0 auto;
+      max-width: 600px;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    
+    .question {
+      margin-bottom: 20px;
+    }
+    
+    .question p {
+      font-weight: bold;
+    }
+    
+    .question ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    
+    .question li {
+      margin-bottom: 5px;
+    }
+    
+    .question .options li {
+      background-color: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    
+    .question .options li:hover {
+      background-color: #f0f0f0;
+    }
+    
+    .question .options li.selected {
+      background-color: #4caf50;
+      color: #fff;
+    }
+    
+    .submit-button {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .submit-button button {
+      font-size: 20px;
+      padding: 10px 20px;
+      background-color: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    /* Responsive styles for mobile devices */
+    @media (max-width: 480px) {
+      #quiz-container {
+        max-width: 300px;
+      }
+
+      .submit-button button {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="quiz-header">
+    <img src="path/to/your/logo.png" class="logo">
+    <h1>Quiz</h1>
+  </div>
+  <div id="quiz-container"></div>
+  <div class="submit-button">
+    <button onclick="submitQuiz()">Submit</button>
+  </div>
+
+  <script>
+    // Replace with your Google Sheets API key and spreadsheet ID
+    const apiKey = 'AIzaSyC-somSBrnbTBV7gJfEqwNQGizp8XhK2Ho';
+    const spreadsheetId = '1KWtDp-WmxqlgnTyXJ93PUZx6PG3E2wrSFcpllCRCJjk';
+
+    // Global variable to store user's selected answers
+    const userAnswers = {};
+
+    // Function to fetch random questions from the Google Sheets spreadsheet
+    async function fetchRandomQuestions() {
+      try {
+        const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Questions!A2:Z?key=${apiKey}`);
+        const data = await response.json();
+
+        // Extract questions, options, and correct answers from the response data
+        let questions = data.values.map(row => ({
+          question: row[0],
+          options: row.slice(1, 5).filter(option => option), // Filter out empty options
+          correctAnswer: row[5]
+        }));
+
+        // Randomly select five questions
+        const randomQuestions = [];
+        let totalQuestions = questions.length;
+        const numQuestionsToSelect = 5;
+
+        for (let i = 0; i < numQuestionsToSelect; i++) {
+          const randomIndex = Math.floor(Math.random() * totalQuestions);
+          randomQuestions.push(questions[randomIndex]);
+          questions.splice(randomIndex, 1); // Remove selected question to avoid duplication
+          totalQuestions--;
+        }
+
+        return randomQuestions;
+      } catch (error) {
+        console.error('Error fetching questions:', error);
+        return [];
+      }
+    }
+
+    // Function to display the fetched questions on the webpage
+    function displayQuestions(questions) {
+      const quizContainer = document.getElementById('quiz-container');
+
+      questions.forEach((question, index) => {
+        const questionElement = document.createElement('div');
+        questionElement.className = 'question';
+        questionElement.innerHTML = `
+          <h3>Question ${index + 1}:</h3>
+          <p>${question.question}</p>
+          <ul class="options">
+            ${question.options.map(option => `
+              <li onclick="selectOption(${index}, '${option}')">
+                <input type="radio" name="answer-${index}" value="${option}" id="answer-${index}-${option}">
+                <label for="answer-${index}-${option}">${option}</label>
+              </li>
+            `).join('')}
+          </ul>
+        `;
+
+        // Add the correct answer data attribute to the question element
+        questionElement.dataset.correctAnswer = question.correctAnswer;
+
+        quizContainer.appendChild(questionElement);
+      });
+    }
+
+    // Function to handle the selection of an option
+    function selectOption(questionIndex, option) {
+      const selectedOption = document.getElementById(`answer-${questionIndex}-${option}`);
+      const questionElement = selectedOption.closest('.question');
+      const options = questionElement.querySelectorAll('.options li');
+
+      options.forEach(optionElement => {
+        optionElement.style.backgroundColor = '';
+        optionElement.style.color = '';
+      });
+
+      selectedOption.closest('li').style.backgroundColor = '#4caf50';
+      selectedOption.closest('li').style.color = '#fff';
+
+      // Store the user's answer in the global variable
+      userAnswers[questionIndex] = option;
+    }
+
+    // Function to handle the submission of the quiz
+    function submitQuiz() {
+      const quizContainer = document.getElementById('quiz-container');
+      const questions = quizContainer.getElementsByClassName('question');
+
+      let score = 0;
+
+      // Loop through each question
+      for (let i = 0; i < questions.length; i++) {
+        const question = questions[i];
+        const correctAnswer = question.dataset.correctAnswer;
+
+        if (userAnswers[i] === correctAnswer) {
+          score++;
+        }
+      }
+
+      // Redirect to the result page with the score as a URL parameter
+      window.location.href = `result.html?score=${score}&total=${questions.length}`;
+    }
+
+    // Fetch random questions and display them on the webpage
+    fetchRandomQuestions()
+      .then(questions => displayQuestions(questions))
+      .catch(error => console.error('Error:', error));
+  </script>
+</body>
+</html>
